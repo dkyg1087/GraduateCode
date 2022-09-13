@@ -41,47 +41,52 @@ You can modify the default values for the Laplace smoothing parameter and the pr
 Notice that we may pass in specific values for these parameters during our testing.
 """
 
-def naiveBayes(train_set, train_labels, dev_set, laplace=10.0, pos_prior=0.8,silently=False):
-    print_paramter_vals(laplace,pos_prior)
-    good_counter = Counter()
-    bad_counter = Counter()
+def naiveBayes(train_set, train_labels, dev_set, laplace=13.0, pos_prior=0.8,silently=False):
+    print_paramter_vals(laplace,pos_prior)    
+    pos_counter = Counter()
+    neg_counter = Counter()
     good_dict = {}
     bad_dict = {}
-    for words,label in zip(train_set, train_labels):
+    for words,label in zip(train_set,train_labels):
         if label == 1:
-            good_counter.update(words)
+            pos_counter.update(words)
         else:
-            bad_counter.update(words)
-    yhats = []
+            neg_counter.update(words)
     pos_prob = math.log(pos_prior)
     neg_prob = math.log(1-pos_prior)
+    
+    pos_length = len(pos_counter)
+    pos_total = pos_counter.total()
+    pos_smooth = math.log(laplace/(pos_total+(laplace*(pos_length+1))))
+    
+    neg_length = len(neg_counter)
+    neg_total = neg_counter.total()
+    neg_smooth = math.log(laplace/(neg_total+(laplace*(neg_length+1))))
+    yhats = []
+    # print(pos_smooth,neg_smooth)
     for doc in tqdm(dev_set,disable=silently):
+        
         pos_prob = math.log(pos_prior)
         neg_prob = math.log(1-pos_prior)
-        for word_U in doc:
-            word = reader.porter_stemmer.stem(word_U,to_lowercase=False)
-            # word = word_U
-            prob = good_counter[word]
-            if prob != 0:
-                if word in good_dict:
-                    pos_prob += good_dict[word]
-                else:
-                    good_prob = math.log((prob+laplace)/(good_counter.total()+laplace*(len(good_counter)+1)))
-                    good_dict[word] = good_prob
-                    pos_prob += good_prob
-            else:
-                pos_prob += math.log(laplace/(good_counter.total()+(laplace*(len(good_counter)+1))))
+        
+        for word in doc:
+            prob = pos_counter[word]
             
-            prob = bad_counter[word]
             if prob != 0:
-                if word in bad_dict:
-                    neg_prob += bad_dict[word]
-                else:
-                    bad_prob = math.log((prob+laplace)/(bad_counter.total()+laplace*(len(bad_counter)+1)))
-                    bad_dict[word] = bad_prob
-                    neg_prob += bad_prob
+                good_prob = math.log((prob+laplace)/(pos_total+laplace*(pos_length+1)))
+                good_dict[word] = good_prob
+                pos_prob += good_prob
             else:
-                neg_prob += math.log(laplace/(bad_counter.total()+laplace*(len(bad_counter)+1)))
+                pos_prob += pos_smooth
+            
+            prob = neg_counter[word]
+            
+            if prob != 0:
+                bad_prob = math.log((prob+laplace)/(neg_total+laplace*(neg_length+1)))
+                bad_dict[word] = bad_prob
+                neg_prob += bad_prob
+            else:
+                neg_prob += neg_smooth
         if neg_prob > pos_prob :
             yhats.append(0)
         else :
@@ -105,12 +110,60 @@ Notice that we may pass in specific values for these parameters during our testi
 """
 
 # main function for the bigrammixture model
-def bigramBayes(train_set, train_labels, dev_set, unigram_laplace=1.0, bigram_laplace=1.0, bigram_lambda=1.0,pos_prior=0.5, silently=False):
+def bigramBayes(train_set, train_labels, dev_set, unigram_laplace=13, bigram_laplace=0.005, bigram_lambda=0.24,pos_prior=0.8, silently=False):
     print_paramter_vals_bigram(unigram_laplace,bigram_laplace,bigram_lambda,pos_prior)
+    ans_prob = []
     pos_counter = Counter()
     neg_counter = Counter()
-    pos_dict = {}
-    neg_dict = {}
+    good_dict = {}
+    bad_dict = {}
+    for words,label in zip(train_set,train_labels):
+        if label == 1:
+            pos_counter.update([(word1,word2) for word1,word2 in zip(words[:-1],words[1:])])
+        else:
+            neg_counter.update([(word1,word2) for word1,word2 in zip(words[:-1],words[1:])])
+    pos_prob = math.log(pos_prior)
+    neg_prob = math.log(1-pos_prior)
+    
+    pos_length = len(pos_counter)
+    pos_total = pos_counter.total()
+    pos_smooth = math.log(bigram_laplace/(pos_total+(bigram_laplace*(pos_length+1))))
+    
+    neg_length = len(neg_counter)
+    neg_total = neg_counter.total()
+    neg_smooth = math.log(bigram_laplace/(neg_total+(bigram_laplace*(neg_length+1))))
+
+    for doc in tqdm(dev_set,disable=silently):
+        
+        pos_prob = math.log(pos_prior)
+        neg_prob = math.log(1-pos_prior)
+        
+        for word in [(word1,word2) for word1,word2 in zip(doc[:-1],doc[1:])]:
+            prob = pos_counter[word]
+             
+            if prob != 0:
+                good_prob = math.log((prob+bigram_laplace)/(pos_total+bigram_laplace*(pos_length+1)))
+                good_dict[word] = good_prob
+                pos_prob += good_prob
+            else:
+                pos_prob += pos_smooth
+            
+            prob = neg_counter[word]
+            
+            if prob != 0:
+                bad_prob = math.log((prob+bigram_laplace)/(neg_total+bigram_laplace*(neg_length+1)))
+                bad_dict[word] = bad_prob
+                neg_prob += bad_prob
+            else:
+                neg_prob += neg_smooth
+        ans_prob.append((pos_prob,neg_prob))
+        '''
+        Unigram start here
+        ''' 
+    pos_counter = Counter()
+    neg_counter = Counter()
+    good_dict = {}
+    bad_dict = {}
     for words,label in zip(train_set,train_labels):
         if label == 1:
             pos_counter.update(words)
@@ -118,20 +171,51 @@ def bigramBayes(train_set, train_labels, dev_set, unigram_laplace=1.0, bigram_la
             neg_counter.update(words)
     pos_prob = math.log(pos_prior)
     neg_prob = math.log(1-pos_prior)
+    
+    pos_length = len(pos_counter)
+    pos_total = pos_counter.total()
+    if unigram_laplace == 0:
+        pos_smooth = 0
+    else:
+        pos_smooth = math.log(unigram_laplace/(pos_total+(unigram_laplace*(pos_length+1))))
+    
+    neg_length = len(neg_counter)
+    neg_total = neg_counter.total()
+    if unigram_laplace == 0:
+        neg_smooth = 0
+    else:
+        neg_smooth = math.log(unigram_laplace/(neg_total+(unigram_laplace*(neg_length+1))))
+    i = 0
     yhats = []
     for doc in tqdm(dev_set,disable=silently):
+        
         pos_prob = math.log(pos_prior)
         neg_prob = math.log(1-pos_prior)
-        for i in (len(doc)-1):
-            word = reader.porter_stemmer.stem(doc[i],to_lowercase=True) +" "+ reader.porter_stemmer.stem(doc[i]+1,to_lowercase=True)
-            count = pos_counter[word]
-            if count != 0:
-                if word in pos_dict:
-                    pos_prob+= pos_dict[word]
-                else:
-                    pass
-                    # TODO
+        
+        for word in doc:
+            prob = pos_counter[word]
+            
+            if prob != 0:
+                good_prob = math.log((prob+unigram_laplace)/(pos_total+unigram_laplace*(pos_length+1)))
+                good_dict[word] = good_prob
+                pos_prob += good_prob
             else:
-                pass
-                # TODO:                     
+                pos_prob += pos_smooth
+            
+            prob = neg_counter[word]
+            
+            if prob != 0:
+                bad_prob = math.log((prob+unigram_laplace)/(neg_total+unigram_laplace*(neg_length+1)))
+                bad_dict[word] = bad_prob
+                neg_prob += bad_prob
+            else:
+                neg_prob += neg_smooth
+    
+        if ans_prob[i][1]* bigram_lambda +  neg_prob * (1-bigram_lambda)> ans_prob[i][0]* bigram_lambda +  pos_prob * (1-bigram_lambda) :
+            yhats.append(0)
+        else :
+            yhats.append(1)
+        # print(i)
+        i += 1
+    print(len(yhats))
     return yhats

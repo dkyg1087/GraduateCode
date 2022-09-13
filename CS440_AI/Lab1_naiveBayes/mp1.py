@@ -78,15 +78,15 @@ if __name__ == "__main__":
                         help='the directory of the development data')
 
     # When doing final testing, reset the default values below to match your settings in naive_bayes.py
-    parser.add_argument('--stemming',dest="stemming", type=bool, default=True,
+    parser.add_argument('--stemming',dest="stemming", type=bool, default=False,
                         help='Use porter stemmer')
     parser.add_argument('--lowercase',dest="lowercase", type=bool, default=False,
                         help='Convert all word to lower case')
-    parser.add_argument('--laplace',dest="laplace", type=float, default = 13,
+    parser.add_argument('--laplace',dest="laplace", type=float, default = 13.0,
                         help='Laplace smoothing parameter')
-    parser.add_argument('--bigram_laplace',dest="bigram_laplace", type=float, default = 1.0,
+    parser.add_argument('--bigram_laplace',dest="bigram_laplace", type=float, default = 0.005,
                         help='Laplace smoothing parameter for bigrams')
-    parser.add_argument('--bigram_lambda',dest="bigram_lambda", type=float, default = 1.0,
+    parser.add_argument('--bigram_lambda',dest="bigram_lambda", type=float, default = 0.24,
                         help='Weight on bigrams vs. unigrams')
     parser.add_argument('--pos_prior',dest="pos_prior", type=float, default = 0.8,
                         help='Positive prior, i.e. percentage of test examples that are positive')
