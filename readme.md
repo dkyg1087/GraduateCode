@@ -8,4 +8,3 @@
 - CS437 Topics in Internet of Things
 - CS440 Artificial Intelligence
 - CS543 Computer Vision
-- 
