@@ -37,8 +37,8 @@ def main(args):
             path = best_first_search(starting_state)
             end = time.time()
             print("\tPath length: ", len(path))
-            # print("\tUnique states visited: ", len(visited))
-            # print("\tPath found:", [p for p in path])
+            #print("\tUnique states visited: ", len(visited))
+            print("\tPath found:", [p for p in path])
             print(f"\tTime: {end-start:.3f}")
         
     elif "Grid" in args.problem_type:
@@ -65,7 +65,7 @@ def main(args):
             print("\tPath length: ", len(path))
             # print("\tUnique states visited: ", len(visited))
             print("\tStates explored: ", maze.states_explored)
-            # print("Path found:", [p for p in path])
+            #print("Path found:", [p for p in path])
             print("\tTime:", end-start)
         
         if args.show_maze_vis or args.human:
