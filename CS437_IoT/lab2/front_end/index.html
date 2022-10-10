@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="text/javascript" src="socket.js"></script>
+        <script type="text/javascript" src="index.js"></script>
+        <link rel="stylesheet" type="text/css" href="index.css">
+        
+    </head>
+    <body>
+        <h1>CS437 Topics in Internet of Things</h1>
+        <p>Derek Yang (mcy3) & Yoonhwa Jung (yoonhwa2)</p>
+        <span>
+            <img src="meme.jpg" id='pics' width=700px height=500px>
+        </span>
+        <div>
+            <h1 id="text">stop</div>
+            <table class="arrowkeys">
+                <tr>
+                    <td>&ensp;</td>
+                    <td><i class="arrow up" id="up"></i></td>
+                    <td>&ensp;</td>
+                    <td>&ensp;</td>
+                    <td>&ensp;</td>
+                    <td>Speed :</td>
+                    <td id="Speed">   </td>
+                    <td> mm/s</td>
+                    
+                </tr>
+                <tr>
+                    <td><i class="arrow left" id="left"></i></i></td>
+                    <td>&ensp;</td>
+                    <td><i class="arrow right" id="right"></i></td>
+                    <td>&ensp;</td>
+                    <td>&ensp;</td>
+                    <td>Distance :</td>
+                    <td id="Distance">   </td>
+                    <td>cm</td>
+                </tr>
+                <tr>
+                    <td>&ensp;</td>
+                    <td><i class="arrow down" id="down"></i></i></td>
+                    <td>&ensp;</td>
+                    <td>&ensp;</td>
+                    <td>&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;</td>
+                    <td>Pi Temperature :</td>
+                    <td id="Temperature">   </td>
+                    <td>  degree</td>
+                </tr>
+                <tr>
+                    <td>&ensp;</td>
+                    <td>&ensp;</td>
+                    <td>&ensp;</td>
+                    <td>&ensp;</td>
+                    <td>&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;</td>
+                    <td>Battery :</td>
+                    <td id="Battery">   </td>
+                    <td> V </td>
+                </tr>
+            </table>
+            
+            <h1><input type="text" id="input">     <button id="submit" class="btn" onclick="message_send()">Submit</button></h1>
+            
+        </div>
+    </body>
+</html>
