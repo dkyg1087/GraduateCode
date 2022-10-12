@@ -42,11 +42,40 @@ def astar(maze, ispart1=False):
     @return: a path in the form of a list of MazeState objects. If there is no path, return None.
     """
     # Your code here
-    path = []
+    frontier = []
+    heapq.heappush(frontier, maze.getStart())
+    visited_states = {maze.getStart():(None,0)}
+    while len(frontier) > 0 :
+        current_state = heapq.heappop(frontier)
+        #print(current_state)
+        if current_state.is_goal():
+            #print("Find Goal")
+            path = backtrack(visited_states,current_state)
+            return path
+        
+        for neighbor in current_state.get_neighbors(ispart1):
+            if neighbor in visited_states:
+                if visited_states[neighbor][1] > neighbor.dist_from_start:
+                    heapq.heappush(frontier, neighbor)
+                    visited_states[neighbor] = (current_state,neighbor.dist_from_start)
+            else:
+                heapq.heappush(frontier, neighbor)
+                visited_states[neighbor] = (current_state,neighbor.dist_from_start)
+            
+    # ------------------------------
+    
+    # if you do not find the goal return an empty list
     return None
 
 # This is the same as backtrack from MP2
 def backtrack(visited_states, current_state):
     path = []
+    current = current_state
+    while visited_states[current][0]:
+        path.append(current)
+        current = visited_states[current][0]
+    path.append(current)
+    path.reverse()
+    print(path)
     return path
         

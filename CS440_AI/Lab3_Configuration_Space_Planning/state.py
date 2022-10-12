@@ -7,6 +7,7 @@ global_index = count()
 
 
 # TODO: implement this method
+#* Done?
 def manhattan(a, b):
     """
     Computes the manhattan distance
@@ -14,7 +15,7 @@ def manhattan(a, b):
     @param b: a length-3 state tuple
     @return: the manhattan distance between a and b
     """
-    return 0
+    return (abs(a[0] - b[0])+ abs(a[1] - b[1]))
 
 
 from abc import ABC, abstractmethod
@@ -91,31 +92,41 @@ class MazeState(AbstractState):
     # Unlike MP 2, we do not need to remove goals, because we only want to reach one of the goals
     def get_neighbors(self, ispart1=False):
         nbr_states = []
-
+        # print("Finding neighbors for",self.state)
         # We provide you with a method for getting a list of neighbors of a state
         # that uses the Maze's getNeighbors function.
         neighboring_locs = self.maze_neighbors(*self.state, part1=ispart1)
-
+        for neighbor in neighboring_locs:
+            nbr_states.append(MazeState(neighbor,self.goal,self.dist_from_start+1,self.maze,self.mst_cache,self.use_heuristic))
+        
         return nbr_states
 
     # TODO: implement this method
     def is_goal(self):
-        pass
+        return self.state in self.goal
 
     # TODO: implement these methods __hash__ AND __eq__
     def __hash__(self):
-        return 0
+        return hash(tuple(self.state))
     def __eq__(self, other):
-        return True
+        return self.state == other.state
 
     # TODO: implement this method
     # Our heuristic is: manhattan(self.state, nearest_goal). No need for MST.
     def compute_heuristic(self):
-        return 0
+        minn = manhattan(self.goal[0], self.state)
+        for i in range(1,len(self.goal)):
+            minn = min(minn,manhattan(self.goal[i], self.state))
+        return minn
     
     # TODO: implement this method. It should be similar to MP 2
     def __lt__(self, other):
-        pass
+        if self.dist_from_start + self.h < other.dist_from_start + other.h:
+            return True
+        elif self.dist_from_start + self.h == other.dist_from_start + other.h:
+            return self.tiebreak_idx < other.tiebreak_idx
+        else:
+            return False
     
     # str and repr just make output more readable when your print out states
     def __str__(self):

@@ -34,7 +34,33 @@ def transformToMaze(alien, goals, walls, window,granularity):
             Maze: the maze instance generated based on input arguments.
 
     """
-    pass
+    #* configToIdx -> window size to maze size
+    #* idxToConfig -> maze size to window size
+    #* (config/index,[0,0], granularity,alien)
+    width,height = window
+    maxIdx_w,maxIdx_h,_ = configToIdx((width,height,alien.get_shape()),[0,0],granularity,alien)
+    maxIdx_w += 1
+    maxIdx_h += 1
+    alienIdx_0,alienIdx_1 = alien.get_centroid()
+    shape_A = alien.get_shape()
+    maze = np.empty((maxIdx_w,maxIdx_h,3),dtype=str)
+    for shape in range(3):
+        for i in range(maxIdx_w):
+            for j in range(maxIdx_h):
+                i_s,j_s,_ = idxToConfig((i,j,alien.get_shape_idx()),[0,0],granularity,alien)
+                alien.set_alien_config((i_s,j_s,alien.get_shapes()[shape]))
+                if does_alien_touch_wall(alien,walls,granularity):
+                    maze[i,j,shape]='%'
+                elif does_alien_touch_goal(alien,goals):
+                    maze[i,j,shape]='.'
+                elif not is_alien_within_window(alien,window,granularity):
+                    maze[i,j,shape]='%'
+                else:
+                    maze[i,j,shape]=' '
+    act_i,act_j,a_shape = configToIdx((alienIdx_0,alienIdx_1,shape_A),[0,0],granularity,alien)
+    maze[act_i,act_j,a_shape] = 'P'
+    alien.set_alien_config((act_i,act_j,alien.get_shapes()[shape]))
+    return Maze(input_map = maze,alien = alien,granularity = granularity)
 
 if __name__ == '__main__':
     import configparser

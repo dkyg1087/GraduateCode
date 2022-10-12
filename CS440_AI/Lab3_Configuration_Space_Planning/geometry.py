@@ -28,7 +28,22 @@ def does_alien_touch_wall(alien, walls,granularity):
         Return:
             True if touched, False if not
     """
-    return False
+    if alien.is_circle():
+        point = alien.get_centroid()
+        width = alien.get_width()
+        for wall in walls:
+            dist = point_segment_distance(point,((wall[0],wall[1]),(wall[2],wall[3])))
+            if dist < (granularity/(2**0.5))+width or np.isclose(dist,(granularity/(2**0.5))+width):
+                return True
+        return False
+    else:
+        points = alien.get_head_and_tail()
+        width = alien.get_width()
+        for wall in walls:
+            dist = segment_distance(points,((wall[0],wall[1]),(wall[2],wall[3])))
+            if dist < (granularity/(2**0.5))+width or np.isclose(dist,(granularity/(2**0.5))+width):
+                return True
+        return False
 
 def does_alien_touch_goal(alien, goals):
     """Determine whether the alien touches a goal
@@ -40,8 +55,22 @@ def does_alien_touch_goal(alien, goals):
         Return:
             True if a goal is touched, False if not.
     """
+    if alien.is_circle():
+        point = alien.get_centroid()
+        width = alien.get_width()
+        for goal in goals:
+            dist = ((goal[0]-point[0])**2+(goal[1]-point[1])**2)**0.5
+            if dist < goal[2]+ width or np.isclose(dist,goal[2]+ width):
+                return True
+    else:
+        points = alien.get_head_and_tail()
+        width = alien.get_width()
+        for goal in goals:
+            dist = point_segment_distance(goal,points)
+            if dist < goal[2]+ width or np.isclose(dist,goal[2]+ width):
+                return True
     return False
-
+                
 def is_alien_within_window(alien, window,granularity):
     """Determine whether the alien stays within the window
         
@@ -50,47 +79,105 @@ def is_alien_within_window(alien, window,granularity):
             window (tuple): (width, height) of the window
             granularity (int): The granularity of the map
     """
-    return True
+    if alien.is_circle():
+        point = alien.get_centroid()
+        width = alien.get_width()
+        if point[0]-width <= 0 or point[0] + width >= window[0] or point[1]-width <= 0 or point[1] + width >= window[1]:
+            return False
+        return True
+    else:
+        points = alien.get_head_and_tail()
+        width = alien.get_width()
+        for wall in [((0,0),(window[0],0)),((0,0),(0,window[1])),((0,window[1]),window),((window[0],0),window)]:
+            dist = segment_distance(points,wall)
+            if dist < (granularity/(2**0.5))+width or np.isclose(dist,(granularity/(2**0.5))+width):
+                return False
+        return True
 
 def point_segment_distance(point, segment):
-    """Compute the distance from the point to the line segment.
-    Hint: Lecture note "geometry cheat sheet"
+    
+    
+    x1 = segment[0][0]
+    y1 = segment[0][1]
+    x2 = segment[1][0]
+    y2 = segment[1][1]
+    x3 = point[0]
+    y3 = point[1]
+    px = x2-x1
+    py = y2-y1
 
-        Args:
-            point: A tuple (x, y) of the coordinates of the point.
-            segment: A tuple ((x1, y1), (x2, y2)) of coordinates indicating the endpoints of the segment.
+    if px == 0 and py == 0:
+        return ((x3-x1)**2+(y3-y1)**2)**0.5
+    norm = px*px + py*py
 
-        Return:
-            Euclidean distance from the point to the line segment.
-    """
-    return -1
+    u =  ((x3 - x1) * px + (y3 - y1) * py) / float(norm)
+
+    if u > 1:
+        u = 1
+    elif u < 0:
+        u = 0
+
+    x = x1 + u * px
+    y = y1 + u * py
+
+    dx = x - x3
+    dy = y - y3
+
+    dist = (dx*dx + dy*dy)**.5
+    return dist
 
 def do_segments_intersect(segment1, segment2):
-    """Determine whether segment1 intersects segment2.  
-    We recommend implementing the above first, and drawing down and considering some examples.
-    Lecture note "geometry cheat sheet" may also be handy.
 
-        Args:
-            segment1: A tuple of coordinates indicating the endpoints of segment1.
-            segment2: A tuple of coordinates indicating the endpoints of segment2.
+    def onSegment(p, q, r):
+        if ( (q[0] <= max(p[0], r[0])) and (q[0] >= min(p[0], r[0])) and 
+            (q[1] <= max(p[1], r[1])) and (q[1] >= min(p[1], r[1]))):
+            return True
+        return False
+  
+    def orientation(p, q, r): 
+        val = (float(q[1] - p[1]) * (r[0] - q[0])) - (float(q[0] - p[0]) * (r[1] - q[1]))
+        if (val > 0):
+            return 1
+        elif (val < 0):
+            return 2
+        else:
+            return 0
+    p1 = segment1[0]
+    q1 = segment1[1]
+    p2 = segment2[0]
+    q2 = segment2[1]
+    o1 = orientation(p1, q1, p2)
+    o2 = orientation(p1, q1, q2)
+    o3 = orientation(p2, q2, p1)
+    o4 = orientation(p2, q2, q1)
 
-        Return:
-            True if line segments intersect, False if not.
-    """
-    return None
+    if ((o1 != o2) and (o3 != o4)):
+        return True
+
+    if ((o1 == 0) and onSegment(p1, p2, q1)):
+        return True
+
+    if ((o2 == 0) and onSegment(p1, q2, q1)):
+        return True
+
+    if ((o3 == 0) and onSegment(p2, p1, q2)):
+        return True
+
+    if ((o4 == 0) and onSegment(p2, q1, q2)):
+        return True
+
+    return False
 
 def segment_distance(segment1, segment2):
-    """Compute the distance from segment1 to segment2.  You will need `do_segments_intersect`.
-    Hint: Distance of two line segments is the distance between the closest pair of points on both.
-
-        Args:
-            segment1: A tuple of coordinates indicating the endpoints of segment1.
-            segment2: A tuple of coordinates indicating the endpoints of segment2.
-
-        Return:
-            Euclidean distance between the two line segments.
-    """
-    return -1
+    
+    if do_segments_intersect(segment1, segment2):
+        return 0
+    else:
+        minn = point_segment_distance(segment1[0],segment2)
+        minn = min(minn,point_segment_distance(segment1[1],segment2))
+        for point in segment2:
+            minn = min(minn,point_segment_distance(point,segment1))
+    return minn
 
 if __name__ == '__main__':
 
