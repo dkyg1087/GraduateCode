@@ -5,7 +5,7 @@ import cv2
 import matplotlib.pyplot as plt
 from scipy.spatial import distance
 import scipy 
-
+import random as rd
 
 ##############################################
 ### Provided code - nothing to change here ###
@@ -150,15 +150,143 @@ def plot_inlier_matches(ax, img1, img2, inliers):
 #######################################
 
 # See assignment page for the instructions!
+def compute_error(H,matches):
+    num_pairs = len(matches)
+    
+    p1 = np.concatenate((matches[:,0:2],np.ones((1,num_pairs)).T),axis = 1)
+    p2 = matches[:,2:4]
+    
+    t_p1 = np.zeros((num_pairs,2))
+    
+    for i in range(num_pairs):
+        #print(H.shape,len(p1[i]))
+        t_p1[i] = (np.matmul(H, p1[i]) / np.matmul(H, p1[i])[-1])[0:2]
+    
+    return np.linalg.norm(p2 - t_p1, axis=1) ** 2
+
+def compute_homo(subset):
+    A = []
+
+    for i in range(subset.shape[0]):
+        
+        p1 = np.append(subset[i][0:2], 1)
+        p2 = np.append(subset[i][2:4], 1)
+        
+        row1 = [0, 0, 0, p1[0], p1[1], p1[2], -p2[1]*p1[0], -p2[1]*p1[1], -p2[1]*p1[2]]
+        row2 = [p1[0], p1[1], p1[2], 0, 0, 0, -p2[0]*p1[0], -p2[0]*p1[1], -p2[0]*p1[2]]
+        
+        A.append(row1)
+        A.append(row2)
+
+    U, s, V = np.linalg.svd(np.array(A))
+    
+    H = V[len(V)-1].reshape(3, 3)
+
+    H = H / H[2, 2]
+    
+    return H
+        
+
+def ransac(img1,img2,matches,threshold):
+    inliers = 0
+    best_inliers = 0
+    best_H = []
+    best_inliers_pt = []
+    
+    for i in range(1000):
+        idx = rd.sample(range(matches.shape[0]),4)
+        subset = matches[idx]
+        
+        H = compute_homo(subset)
+        
+        if np.linalg.matrix_rank(H) < 3:
+            continue
+        
+        error = compute_error(H,matches)
+        mask = np.where(error < threshold)[0]
+        inliers_pt  = matches[mask]
+        
+        inliers = len(inliers_pt)
+        if inliers > best_inliers:
+            best_inliers = inliers
+            best_H = H.copy()
+            best_inliers_pt = inliers_pt.copy()
+
+            avg_residual = sum(compute_error(best_H,best_inliers_pt)) / best_inliers
+
+    print("Inliers:",best_inliers,"Average residuals:",avg_residual)
+    
+    fig,ax = plt.subplots(figsize=(20,10))
+    #plot_inlier_matches(ax, img1, img2, best_inliers_pt)
+    #plt.savefig("plot_basic.jpg")
+    
+    return best_H
+
+def distance_calculation(kp1,dsp1,kp2,dsp2,threshold):
+    dist = scipy.spatial.distance.cdist(dsp1, dsp2, 'sqeuclidean')
+
+    idx1 = np.where(dist < threshold)[0]
+    idx2 = np.where(dist < threshold)[1]
+    
+    cd1 = np.array([kp1[idx].pt for idx in idx1])
+    cd2 = np.array([kp2[idx].pt for idx in idx2])
+    
+    matches = np.concatenate((cd1, cd2), axis=1)
+
+    return matches
+
+def warp_and_stitch(img1,img2,H):
+    transform = skimage.transform.ProjectiveTransform(H)
+    warp = skimage.transform.warp
+
+    h,w,_ = img1.shape
+
+    c_temp = np.array([[0, 0],
+                        [0, h],
+                        [w, 0],
+                        [w, h]])
+
+    c_w = transform(c_temp)
+    corner = np.vstack((c_w, c_temp))
+
+    c_min = np.min(corner, axis=0)
+    c_max = np.max(corner, axis=0)
+
+    output_shape = (c_max - c_min)
+    output_shape = np.ceil(output_shape[::-1])
+
+    offset = skimage.transform.SimilarityTransform(translation=-c_min)
+
+    img1_w = warp(img1, (transform + offset).inverse, output_shape=output_shape, cval=0)
+    img2_w = warp(img2, offset.inverse, output_shape=output_shape, cval=0)
+
+    img2_w[img1_w > 0] = 0
+    result = img1_w + img2_w 
+    result = cv2.convertScaleAbs(result, alpha=(255.0))
+    return result
+
 
 def stitch_image(img1,img2):
     img1_g = cv2.cvtColor(img1,cv2.COLOR_BGR2GRAY)
     img2_g = cv2.cvtColor(img2,cv2.COLOR_BGR2GRAY)
     
+    kp1,dsp1 = cv2.SIFT_create().detectAndCompute(img1_g,None)
+    kp2,dsp2 = cv2.SIFT_create().detectAndCompute(img2_g,None)
+    
+    matches = distance_calculation(kp1,dsp1,kp2,dsp2,9000)
+    
+    H = ransac(img1_g,img2_g,matches,1.5)
+    
+    stitched = warp_and_stitch(img1,img2,H)
+    
+    return stitched
 
 def main():
-    img_dir = 'data/'
-    img_name = ['left.jpg','right.jpg']
+    #img_dir = 'data/'
+    img_dir = 'data/ledge/'
+    
+    #img_name = ['right.jpg','left.jpg']
+    img_name = ['3.jpg','2.jpg','1.jpg']
     img_list = []
     
     for name in img_name:
@@ -170,10 +298,11 @@ def main():
         stitched_img = stitch_image(img1,img2)
         img_list.insert(0,stitched_img)
 
+
     cv2.imshow("result",img_list[0])
+    cv2.imwrite("result_ledge.jpg",img_list[0])
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-
 
 
 
