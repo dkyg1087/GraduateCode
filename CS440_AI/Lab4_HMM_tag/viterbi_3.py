@@ -2,171 +2,213 @@
 Part 4: Here should be your best version of viterbi, 
 with enhancements such as dealing with suffixes/prefixes separately
 """
-import numpy as np
-import sys
 import math
+import numpy as np
+
+def buildTrellis(sentence, wCount, indexDict, smoothConst, tagCount, tagList, initProb, transition, hapax):
+    trellis= []
+    scale= 1000
+    mostFreqTag= max(tagCount, key= tagCount.get)
+    suffixDict= {"ly":{"ADV": 9*scale},
+                "ed":{"VERB": 7*scale, "ADJ": 2*scale},
+                "wise":{"ADV": 6*scale, "ADJ": 4*scale},
+                "ing":{"VERB": 7*scale, "NOUN": 2*scale},
+                "able":{"ADJ": 9*scale},
+                "ible":{"ADJ": 9*scale},
+                "ship":{"NOUN": 10*scale},
+                "ous":{"ADJ": 10*scale},
+                "ment":{"NOUN": 10*scale},
+                "ion":{"NOUN": 9*scale, "VERB": 1*scale},
+                "ness":{"NOUN": 10*scale},
+                "ism":{"NOUN": 10*scale},
+                "ee":{"NOUN": 8*scale, "VERB": 1*scale, "ADJ": 1*scale}}
+
+    for i in range(len(sentence)):
+        newWord= sentence[i]
+            
+        pair= []
+        if i == 0:
+            if newWord in wCount:
+                for t in indexDict.keys():
+                    if t not in wCount[newWord]:
+                        scaledConst= scaleSmoothConst(t, smoothConst, hapax)
+                        prob= scaledConst/(tagCount[mostFreqTag] + scaledConst*(len(tagCount)+1))
+                        temp= (prob, t)
+                        # print("Not in wordTags[]", temp)
+                        pair.append(temp)
+                    else:
+                        prob= wCount[newWord][t]
+                        temp= ((initProb[indexDict[t]]*prob), t)
+                        # print("In wordTags[]", temp)
+                        pair.append(temp)
+            else:
+                modHapax= hapax
+                for suffix in list(suffixDict.keys()):
+                    if newWord.endswith(suffix):
+                        modHapax= suffixDict(suffix)
+                
+                
+                for t in indexDict.keys():
+                    scaledConst= scaleSmoothConst(t, smoothConst, modHapax)
+                    totalHapaxNum= sum(modHapax.values())+1
+                    if t in modHapax:
+                        prob = (modHapax.get(t)+scaledConst)/(totalHapaxNum + scaledConst*(len(tagCount)+1))
+                    else:
+                        prob= scaledConst/(totalHapaxNum + scaledConst*(len(tagCount)+1))
+                    
+                    temp= (prob, t)
+                    # print("Not in wordTags", temp)
+                    pair.append(temp)
+        else:
+            prob= 0
+            for t in indexDict.keys():
+                
+                idx= indexDict[t]
+                for j in range(len(indexDict)):
+                    prob= -99999999999999999
+                    if newWord in wCount:
+                        scaledConst= scaleSmoothConst(t, smoothConst, hapax)
+                        if t in wCount[newWord]:
+                            prob= wCount[newWord][t]
+                        else:
+                            
+                            prob= scaledConst/(tagCount[mostFreqTag] + scaledConst*(len(tagCount)+1))
+                    else:
+                        modHapax= hapax
+                        for suffix in list(suffixDict.keys()):
+                            if newWord.endswith(suffix):
+                                modHapax= suffixDict[suffix]
+                        scaledConst= scaleSmoothConst(t, smoothConst, modHapax)
+                        totalHapaxNum= sum(modHapax.values())+1
+                        if t in modHapax:
+                            prob = (modHapax.get(t)+scaledConst)/(totalHapaxNum + scaledConst*(len(tagCount)+1))
+                        else:
+                            prob= scaledConst/(totalHapaxNum + scaledConst*(len(tagCount)+1))
+
+                    prevProb= trellis[i-1][idx][0]
+                    prob= prevProb+math.log(transition[idx][j])+math.log(prob)
+                    temp= (prob, tagList[idx])
+                    if idx == 0:
+                        # print("idx== 0", temp)
+                        pair.append(temp)
+                    elif (prob > pair[j][0]):
+                        # print("prob > pair[j][0]", temp)
+                        pair[j]= temp
+        # print(pair) 
+        trellis.append(pair)
+    return trellis
+
+def backtrackTrellis(trellis, tagList, indexDict):
+    pred= []
+    tupList= trellis[len(trellis)-1]
+    # print(tupList)
+    maxIdx= tupList.index((max(tupList)))
+    pred.append(tagList[maxIdx])
+
+    prevTag= max(tupList)
+    for i in range(len(trellis)-1, 0, -1):
+        prevTag= trellis[i-1][indexDict[prevTag[1]]]    
+        pred.insert(0, prevTag[1])
+    
+    pred[0]= max(trellis[0])[1]
+    # print(trellis[0])
+
+    return pred
+
+def scaleSmoothConst(t, smoothConst, hapax):
+    # totalHapaxNum= sum(hapax.values())+1
+    if t in hapax:
+        return hapax.get(t)*smoothConst
+    else:
+        return smoothConst
+
 def viterbi_3(train, test):
     '''
-    input:  training data (list of sentences, with tags on the words)
-            test data (list of sentences, no tags on the words)
-    output: list of sentences with tags on the words
+    input:  training data (list of sentences, with tags on the words). E.g.,  [[(word1, tag1), (word2, tag2)], [(word3, tag3), (word4, tag4)]]
+            test data (list of sentences, no tags on the words). E.g.,  [[word1, word2], [word3, word4]]
+    output: list of sentences, each sentence is a list of (word,tag) pairs.
             E.g., [[(word1, tag1), (word2, tag2)], [(word3, tag3), (word4, tag4)]]
     '''
-    wordTags = {}
-    tags = {}
+    wCount= {}
+    tagCount= {}
 
-    index = 0
-    indexs = {}
+    index= 0
+    indexDict= {}
     
-    for sentence in train:
-        for data in sentence:
-            w, t = data
-            if w not in wordTags:
-                wordTags[w] = {}
-            if t not in wordTags[w]:
-                wordTags[w][t] = 1
+    for s in train:
+        for pair in s:
+            w, tag = pair
+
+            if tag in tagCount:
+                tagCount[tag]+= 1
             else:
-                wordTags[w][t] += 1
+                tagCount[tag]= 1
+                indexDict[tag]= index
+                index+= 1
+
+            if w not in wCount:
+                wCount[w]= {}
+
+            if tag in wCount[w]:
+                wCount[w][tag]+= 1
+            else:
+                wCount[w][tag]= 1
+    
+    hapax= {}
+    for w in wCount.keys():
+        # print(len(wCount[i].keys()))
+        if len(wCount[w].keys()) == 1:
+            hapax[list(wCount[w].keys())[0]] = hapax.get(list(wCount[w].keys())[0], 0)+1
             
-            if t not in tags:
-                tags[t] = 1
-                indexs[t] = index
-                index += 1
-            else:
-                tags[t] += 1
-    emissionSmooth = 0.1
-    hapax = {}
-    for i in wordTags.keys():
-        if len(wordTags[i].keys()) == 1:
-            for j in wordTags[i].keys():
-                hapax[j] = hapax.get(j,0)+1
-    print(hapax)
-    open = ["NOUN", "VERB","ADJ","ADV"]
-    for i in wordTags.keys():
-        for j in wordTags[i].keys():
-            if j in open:
-                emissionSmooth = 5
-            else:
-                emissionSmooth = 5
-            wordTags[i][j] = (wordTags[i][j]+emissionSmooth) / (tags[j] + emissionSmooth * (len(j)+1))
-  
 
-    initialProbabilities = np.zeros(index)
-    transition = np.zeros((index, index))
-    mostOfenTags = max(tags, key=tags.get)
-    for i in train:
-        flag = True
-        for j in range(len(i[:-1])):
-            w, t = i[j]
-            curr = indexs[t]
+    smoothConst= 0.00001
+
+    for w in wCount.keys():
+        for tag in wCount[w].keys():
+            scaledConst= scaleSmoothConst(tag, smoothConst, hapax)
+            wCount[w][tag]= (wCount[w][tag] + scaledConst)/(tagCount[tag] + scaledConst*(len(tag)+1))
+
+    # print(index)
+    initProb= np.zeros(index)
+    transition= np.zeros(shape=(index, index))
+
+    for s in train:
+        flag= True
+        for i in range(len(s)-1):
+            w, tag = s[i]
+            tagIdx= indexDict[tag]
+
             if flag:
-                initialProbabilities[curr] += 1
-                flag = False
-            next = i[j + 1][1]
-            transition[curr][indexs[next]] += 1
+                initProb[tagIdx]+= 1
+                flag= False
 
+            next= s[i+1][1]
+            transition[tagIdx][indexDict[next]]+= 1
 
-    # get initial probabilities
-    for i in range(len(initialProbabilities)):
-        initialProbabilities[i] = (initialProbabilities[i]) / (len(train)+ 1)
+    for i in range(len(initProb)):
+        initProb[i]= initProb[i]/(len(train)+1)
 
-    tagSize = len(tags)+1
-    transitionSmooth= 1  # LaPlace smoothing
-    for t, c in tags.items():
-        j = indexs[t]
+    for tag, c in tagCount.items():
+        prev= indexDict[tag]
         for i in range(len(transition)):
-            transition[j][i] = (transition[j][i] + transitionSmooth) / (c + transitionSmooth * tagSize)
+            scaledConst= scaleSmoothConst(tag, smoothConst, hapax)
+            transition[prev][i]= (transition[prev][i] + scaledConst)/(c + scaledConst*(len(tagCount)+1))
 
-    tagList = []
-    for tag in indexs.keys():
+
+    tagList= []
+    for tag in indexDict.keys():
         tagList.append(tag)
 
-    result = []
+    result= []
     for sentence in test:
-        trellis = constructTrellis(sentence,wordTags,indexs,emissionSmooth,tags,tagList,initialProbabilities,transition,mostOfenTags,hapax)
+        trellis= buildTrellis(sentence, wCount, indexDict, smoothConst, tagCount, tagList, 
+                                initProb, transition, hapax)
+
         if len(trellis) == 0:
             result.append([])
             continue
-        
-        sentences = backtracingTrellis(trellis,tagList,indexs)
-        result.append(list(zip(sentence, sentences)))
-    return result
 
-def checkTags(listOfTags,word,tag,tags,emissionSmooth,tagSize,mostOfenTags,hapax):
-    hapaxs = sum(hapax.values())+1
-    if tag in hapax:
-        prob = (hapax.get(tag)+emissionSmooth) / (hapaxs+emissionSmooth * tagSize)
-    else:
-        prob = (emissionSmooth) / (hapaxs+emissionSmooth * tagSize)
-    return prob
-def checkSmooth(t,open):
-    if t in open:
-        emissionSmooth = 5
-    else:
-        emissionSmooth = 5
-    return emissionSmooth
-def constructTrellis(sentence,wordTags,indexs,emissionSmooth,tags,tagList,initialProbabilities,transition,mostOfenTags,hapax):
-    trellis = []
-    tagSize = len(tags) + 1
-    listOfTags = {"ly":["ADV"],"ing":["NOUN","VERB"],"able":["ADJ","NOUN"],"ment":["NOUN"],"ed":["VERB","NOUN"],"on":["NOUN","IN","ADV"],"s":["NOUN","VERB","ADV","IN","CONJ"]}
-    openn = ["NOUN", "VERB","ADJ","ADV"]
-    for i in range(len(sentence)):
-        newWord = sentence[i]
-        pair = []
-        if i == 0:
-            if newWord in wordTags:
-                for t in indexs.keys():
-                    emissionSmooth = checkSmooth(t,openn)
-                    if t not in wordTags[newWord]:
-                        prob = (emissionSmooth) / (tags[mostOfenTags]+emissionSmooth * tagSize)
-                        tempTuple = (prob, t)
-                        pair.append(tempTuple)
-                    else:
-                        prob = wordTags[newWord][t]
-                        tempTuple = (initialProbabilities[indexs[t]] * prob, t)
-                        pair.append(tempTuple)
-            else:
-                for t in indexs.keys():
-                    emissionSmooth = checkSmooth(t,openn)
-                    prob = checkTags(listOfTags,newWord,t,tags,emissionSmooth,tagSize,mostOfenTags,hapax)
-                    tempTuple = (prob, t)
-                    pair.append(tempTuple)
-        else:
-            prob = 0
-            for tag in indexs.keys():
-                idx = indexs[tag]
-                emissionSmooth = checkSmooth(tag,openn)
-                for j in range(len(indexs)):
-                    prob = -999999
-                    if newWord in wordTags:
-                        if tag in wordTags[newWord]:
-                            prob = wordTags[newWord][tag]
-                        else:
-                            prob = prob = (emissionSmooth) / (tags[mostOfenTags]+emissionSmooth * tagSize)
-                            
-                    else:
-                        prob = checkTags(listOfTags,newWord,tag,tags,emissionSmooth,tagSize,mostOfenTags,hapax)
-                    #if (i == 1):
-                    prob = trellis[i - 1][idx][0]+ math.log(transition[idx][j]) + math.log(prob)
-                    #else:
-                    #prob = trellis[i - 1][idx][0] + trellis[i - 2][idx][0] + math.log(transition[idx][j]) + math.log(prob)
-                    tempTuple = (prob, tagList[idx])
-                    if idx == 0:
-                        pair.append(tempTuple)
-                    elif (prob > pair[j][0]):
-                        pair[j] = tempTuple
-        trellis.append(pair)
-    return trellis
-def backtracingTrellis(trellis,tagList,indexs):
-    sentences = []
-    
-    tupList = trellis[len(trellis) - 1]
-    i = tupList.index((max(tupList)))
-    sentences.append(tagList[i])
-    tagPrev = max(tupList)
-    for i in range(len(trellis)-1, 0, -1): #backtracing
-        tagPrev = trellis[i - 1][indexs[tagPrev[1]]]
-        sentences.insert(0, tagPrev[1])
-    maxTag = max(trellis[0])[1]
-    sentences[0] = maxTag
-    return sentences
+        pred= backtrackTrellis(trellis, tagList, indexDict)
+        result.append(list(zip(sentence, pred)))
+    return result
+    # return []

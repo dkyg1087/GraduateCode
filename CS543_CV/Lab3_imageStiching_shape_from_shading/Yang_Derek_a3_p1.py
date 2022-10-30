@@ -159,7 +159,6 @@ def compute_error(H,matches):
     t_p1 = np.zeros((num_pairs,2))
     
     for i in range(num_pairs):
-        #print(H.shape,len(p1[i]))
         t_p1[i] = (np.matmul(H, p1[i]) / np.matmul(H, p1[i])[-1])[0:2]
     
     return np.linalg.norm(p2 - t_p1, axis=1) ** 2

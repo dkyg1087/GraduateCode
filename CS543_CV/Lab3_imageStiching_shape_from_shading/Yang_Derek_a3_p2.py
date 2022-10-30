@@ -114,9 +114,10 @@ def display_output(albedo_image, height_map):
     ax.zaxis.set_ticks([])
     ax.yaxis.set_label_text('Y')
     surf = ax.plot_surface(
-        H, X, Y, cmap='gray', facecolors=A, linewidth=0, antialiased=False)
+        H, X, Y, rcount=100, ccount=100, cmap='gray', facecolors=A, linewidth=0, antialiased=False)
     set_aspect_equal_3d(ax)
     plt.show()
+
 
 # Plot the surface normals
 
@@ -155,22 +156,15 @@ def preprocess(ambimage, imarray):
     Outputs:
         processed_imarray: h x w x Nimages
     """
-    h, w, n = imarray.shape
-    processed_img = np.zeros((h, w, n))
-    
-    for idx in range(0, n):
-        eachimg = imarray[:, :, idx]
-        eachimg = np.subtract(eachimg, ambimage)
-        eachimg = np.clip(eachimg, 0.0, 255.0)
-        maxpic = float(np.amax(eachimg))
-        eachimg = np.divide(eachimg, maxpic)
-        
-        processed_img[:, :, idx] = eachimg
-    return processed_img
+    #* Done
+    imarray_p = imarray - ambimage[:,:,np.newaxis]    
+    imarray_p[imarray_p < 0] = 0
+    imarray_p = imarray_p / 255.0
+    return imarray_p
 
 
 
-def photometric_stereo(imarray, light_dirs):
+def photometric_stereo(imarray, light_dirs , approach="single"):
     """
     Inputs:
         imarray:  h x w x Nimages
@@ -179,37 +173,78 @@ def photometric_stereo(imarray, light_dirs):
         albedo_image: h x w
         surface_norms: h x w x 3
     """
-    h, w, n = imarray.shape
-    albedo_image = np.zeros((h, w))
-    surface_normals = np.zeros((h, w, 3))
+    #* Done
     
-    # for each pixel
-    for x in range(0, h):
-        for y in range(0, w):
-            I = imarray[x, y, :]
-            VT = light_dirs
-            g = np.linalg.lstsq(VT, I, rcond = -1)[0]
-            albedo_image[x][y] = np.sqrt(g[0]**2 + g[1]**2 + g[2]**2)
-            norm_g = np.divide(g, albedo_image[x][y])
-            surface_normals[x, y, :] = norm_g
+    h, w, n = imarray.shape
+    
+    if approach == "each": 
+        albedo_image = np.zeros((h, w))
+        surface_normals = np.zeros((h, w, 3))
+        
+        for x in range(h):
+            for y in range(w):
+                
+                g = np.linalg.lstsq(light_dirs, imarray[x, y, :], rcond = -1)[0]
+                
+                albedo_image[x][y] = np.linalg.norm(g, axis=0)
+
+                surface_normals[x, y, :] = g / albedo_image[x][y]
             
-    return albedo_image, surface_normals
-
-
-
-def randompath(surface_normals, fx, fy, x, y, curx, cury):
-    if curx == x and cury == y:
-        return 0
-    if curx == x:
-        return fy[curx][cury] + randompath(surface_normals, fx, fy, x, y, curx, cury + 1)
-    elif cury == y:
-        return fx[curx][cury] + randompath(surface_normals, fx, fy, x, y, curx + 1, cury)
+        return albedo_image, surface_normals
     else:
-        randgen = random.uniform(0, 1)
-        if randgen >= 0.5:
-            return fy[curx][cury] + randompath(surface_normals, fx, fy, x, y, curx, cury + 1)
-        else:
-            return fx[curx][cury] + randompath(surface_normals, fx, fy, x, y, curx + 1, cury)
+        
+        imarray = imarray.reshape(h*w, n).transpose()
+    
+
+        results = np.linalg.lstsq(light_dirs, imarray,rcond = -1)
+        g = results[0]
+
+
+        albedo_image = np.linalg.norm(g, axis=0)
+        surface_normals = g / albedo_image
+
+
+        surface_normals = surface_normals.transpose().reshape(h, w, 3)
+        albedo_image = albedo_image.reshape(h, w)
+
+        return albedo_image, surface_normals
+
+
+
+def random_path(surface_normals,loops,fx,fy):
+
+        h,w= surface_normals.shape[:2]
+        
+        height_map = np.zeros((h, w))
+        
+        for y in range(h):
+            for x in range(w):
+                
+                if x != 0 or y != 0:
+                    
+                    for _ in range(loops):
+                        zeros = [0] * x
+                        ones = [1] * y
+                        bit_stream = np.array(zeros + ones)
+
+                        np.random.shuffle(bit_stream)
+                        
+                        current_x = 0
+                        current_y = 0
+                        cumsum = 0
+
+                        for step in bit_stream:
+                            if step == 0:
+                                cumsum += fx[current_y, current_x]
+                                current_x += 1
+                            else:
+                                cumsum += fy[current_y, current_x]
+                                current_y += 1
+                        
+                        height_map[y, x] += cumsum
+                    
+                    height_map[y, x] = height_map[y, x]/loops
+        return height_map
         
 
 def get_surface(surface_normals, integration_method):
@@ -221,49 +256,28 @@ def get_surface(surface_normals, integration_method):
         height_map: h x w
     """
     h, w, n = surface_normals.shape
-    height_map = np.zeros((h, w))
-    height_map_row = np.zeros((h, w))
-    height_map_col = np.zeros((h, w))
-    
-    fx = np.zeros((h, w))
-    fy = np.zeros((h, w))
-    fx_copy = np.zeros((h, w))
-    fy_copy = np.zeros((h, w))
-    # here x and y goes reversely...
-    fy = np.true_divide(surface_normals[:, :, 0], surface_normals[:, :, 2])
-    fx = np.true_divide(surface_normals[:, :, 1], surface_normals[:, :, 2])
-    
-    
-    # right then down
-    for i in range(0, h):
-        fy_copy[i, :] = fy[0, :]
-    height_map_col = np.cumsum(fy_copy, axis = 1) + np.cumsum(fx, axis = 0)
-    
-    # down then right
-    for i in range(0, w):
-        fx_copy[:, i] = fx[:, 0]
-    height_map_row = np.cumsum(fx_copy, axis = 0) + np.cumsum(fy, axis = 1)
 
+    fx = surface_normals[:, :, 0] / surface_normals[:, :, 2]
+    fy = surface_normals[:, :, 1] / surface_normals[:, :, 2]
+    
+    row_sum_x = np.cumsum(fx, axis=1)
+    col_sum_y = np.cumsum(fy, axis=0)
+    
     if integration_method == 'row':
-        return height_map_row
+        return row_sum_x[0] + col_sum_y
     elif integration_method == 'column':
-        return height_map_col
+        return col_sum_y[:, 0][:, np.newaxis] + row_sum_x
     elif integration_method == 'average':
-        return (height_map_row + height_map_col) / 2
+        return (col_sum_y[:, 0][:, np.newaxis] + row_sum_x + row_sum_x[0] + col_sum_y) / 2
     else:
-        height_random = np.zeros((h, w))
-        for times in range(0, 30):
-            for i in range(0, h):
-                for j in range(0, w):
-                    height_random[i][j] += randompath(surface_normals, fx, fy, i, j, 0, 0)
-        return np.true_divide(height_random, 30)
+        return random_path(surface_normals,25,fx,fy)
 
 
 
 # Main function
 if __name__ == '__main__':
     root_path = 'data/croppedyale/'
-    subject_name = 'yaleB02'
+    subject_name = 'yaleB07'
     integration_method = 'row'
     save_flag = False
 
@@ -274,10 +288,14 @@ if __name__ == '__main__':
     processed_imarray = preprocess(ambient_image, imarray)
 
     albedo_image, surface_normals = photometric_stereo(processed_imarray,
-                                                    light_dirs)
+                                                    light_dirs,"single")
 
+    st = time.time()
     height_map = get_surface(surface_normals, 'average')
-
+    et = time.time()
+    
+    print(et-st)
+    
     if save_flag:
         save_outputs(subject_name, albedo_image, surface_normals)
 
