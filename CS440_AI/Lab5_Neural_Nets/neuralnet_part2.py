@@ -39,12 +39,12 @@ class NeuralNet(nn.Module):
         """
         super(NeuralNet, self).__init__()
         self.loss_fn = loss_fn
-        self.cnn = nn.Sequential(nn.Conv2d(3,9, kernel_size=3), nn.ReLU())
+        self.cnn1 = nn.Sequential(nn.Conv2d(3,6, kernel_size=3), nn.ReLU())
         self.pool = nn.MaxPool2d(2,2)
-        self.cnnTrans = nn.Sequential(nn.Conv2d(9,3, kernel_size=3), nn.ReLU())
-        self.nerualNetwork = nn.Sequential(nn.Linear(108, 64),nn.Sigmoid(),nn.Linear(64, 16),nn.Sigmoid(),nn.Linear(16,out_size))
+        self.cnn2 = nn.Sequential(nn.Conv2d(6,16, kernel_size=3), nn.ReLU())
+        self.nerualNetwork = nn.Sequential(nn.Linear(576, 64),nn.ReLU(),nn.Linear(64, 8),nn.ReLU(),nn.Linear(8,out_size))
         self.lrate = lrate
-        self.optims = optim.Adagrad(self.parameters(), self.lrate)
+        self.optims = optim.SGD(self.parameters(), self.lrate,momentum=0.9,weight_decay=0.004)
         
     def forward(self, x):
         """Performs a forward pass through your neural net (evaluates f(x)).
@@ -54,9 +54,9 @@ class NeuralNet(nn.Module):
         """
         N = x.shape[0]
         x = x.view(N,3,31,31)
-        x = self.pool(self.cnn(x))
+        x = self.pool(self.cnn1(x))
         #print(x.shape)
-        x =self.cnnTrans(x)
+        x =self.cnn2(x)
         x = self.pool(x)
         #print(x.shape)
         x = torch.flatten(x,1)
@@ -77,7 +77,10 @@ class NeuralNet(nn.Module):
         self.optims.step()
 
         return lossFunction.item()
-
+def preprocess(data_set):
+    for i,data in enumerate(data_set.data):
+        data_set.data[i] = data / np.linalg.norm(data)
+        #print(data)
 def fit(train_set,train_labels,dev_set,epochs,batch_size=100):
     """ Make NeuralNet object 'net' and use net.step() to train a neural net
     and net(x) to evaluate the neural net.
@@ -99,13 +102,16 @@ def fit(train_set,train_labels,dev_set,epochs,batch_size=100):
     @return net: a NeuralNet object
     """
     loss_fn = nn.CrossEntropyLoss()
-    lrate = 0.005945
+    lrate = 0.0002
 
     net = NeuralNet(lrate, loss_fn, len(train_set[0]), 4)
     losses = []
     yhats = []
     data = get_dataset_from_arrays(train_set, train_labels)
+    #preprocess(data)
+    #print(data.data.shape)
     trainloader = DataLoader(data,batch_size=batch_size,shuffle=False)
+
     for _ in range(epochs):            
         for data in trainloader:
             #print(data)
@@ -116,7 +122,8 @@ def fit(train_set,train_labels,dev_set,epochs,batch_size=100):
             steps = net.step(inputs,labels)
             net.optims.step()
         losses.append(steps)
-    
+    #preprocess(dev_set)
+    #print(dev_set)
     network = net(dev_set).detach().numpy()
-    yhats = np.argmax(network,axis=1).astype(np.int)
+    yhats = np.argmax(network,axis=1).astype(int)
     return losses, yhats, net

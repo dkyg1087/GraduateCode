@@ -43,6 +43,8 @@ def main(args):
     dev_set = torch.tensor(dev_set, dtype=torch.float32)
 
     L, predicted_labels, net = p.fit(train_set, train_labels, dev_set, args.epochs)
+    net = net.eval()
+    predicted_labels = np.argmax(net(dev_set).detach().numpy(), axis=1).astype(int)
     if(args.part == 3):
         torch.save(net, "net.model")
         torch.save(net.state_dict(),'state_dict.state')
