@@ -57,25 +57,27 @@ class Agent:
                 reward  = -1
             elif points > self.points:
                 reward = 1
-            self.N[self.s][self.a]+=1
-            lr = self.C / (self.C + self.N[self.s][self.a])
-            self.Q[self.s][self.a]+= lr * (reward + (self.gamma * max(self.Q[s_prime]))-self.Q[self.s][self.a])
             
-            for i,n in enumerate(np.flip(self.N[self.s])):
-                if n <= self.Ne:
-                    action = len(self.actions) - i -1
-                    self.a = action
-                    self.s = s_prime
-                    self.points = points
-                    return action
+            self.N[self.s][self.a]+=1
+            
+            lr = self.C / (self.C + self.N[self.s][self.a])
+            self.Q[self.s][self.a]+= lr * (reward + self.gamma * max(self.Q[s_prime])-self.Q[self.s][self.a])
+                   
         if dead:
             self.reset()
             return utils.UP
         else:
-            action = len(self.actions) - np.argmax(np.flip(self.Q[s_prime]))-1 # make the priority RIGHT > LEFT > DOWN > UP.
-            self.a = action
             self.s = s_prime
             self.points = points
+            
+            for i,n in enumerate(np.flip(self.N[self.s])):
+                if n < self.Ne:
+                    action = len(self.actions) - i -1
+                    self.a = action
+                    return action
+            
+            action = len(self.actions) - np.argmax(np.flip(self.Q[s_prime]))-1 # make the priority RIGHT > LEFT > DOWN > UP.
+            self.a = action
             return action
 
     def generate_state(self, environment):
@@ -97,12 +99,12 @@ class Agent:
         height, width = utils.DISPLAY_HEIGHT, utils.DISPLAY_WIDTH
         if snake_head_x == 1:
             awx = 1
-        elif snake_head_y == width-1:
+        elif snake_head_x == width-2:
             awx = 2
         
         if snake_head_y == 1:
             awy = 1
-        elif snake_head_y == height-1:
+        elif snake_head_y == height-2:
             awy = 2
         
         for adj in [(1,0,"r"),(-1,0,"l"),(0,-1,"t"),(0,1,"b")]:
