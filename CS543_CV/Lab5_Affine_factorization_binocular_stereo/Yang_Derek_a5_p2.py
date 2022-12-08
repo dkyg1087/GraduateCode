@@ -9,8 +9,13 @@ def sliding_window(img,stepSize=1,windowSize=1):
         for i in range(half,img.shape[1]-half,stepSize):
             yield (i,j,img[j-half:j+half,i-half:i+half])
 
-def downsample():
-    pass
+def downscale(img):
+    result = cv2.resize(img,(img.shape[0]//2,img.shape[1]//2))
+    return result
+
+def upscale(img):
+    result = cv2.resize(img,(img.shape[0]*2,img.shape[1]*2))
+    return result
 
 def match(window,right,i,j,method,windowSize,offset):
     disparity = 0
@@ -26,15 +31,11 @@ def match(window,right,i,j,method,windowSize,offset):
                 minSSD = temp
                 disparity = i - k
     elif method == "SAD":
-        minSAD = 999999
+        minSAD = 99999999
         temp = 0
         lf = i-offset if i-offset > half else half
         rt = i+offset if i+offset < right.shape[1]-half else right.shape[1]-half
         for k in range(lf,rt):
-            cv2.imshow("window",window)
-            cv2.imshow("right",right[j-half:j+half,k-half:k+half])
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
             temp = np.sum(np.abs(window-right[j-half:j+half,k-half:k+half]))
             if temp < minSAD:
                 minSAD = temp
@@ -54,16 +55,26 @@ def match(window,right,i,j,method,windowSize,offset):
     return disparity
 
 def main():
+    resize = True
     imgDir = "data/"
-    imgList = ["tsukuba1.jpg", "tsukuba2.jpg"]  #GCD is 96
-    #imgList = ["moebius1.png", "moebius2.png"]  #GCD is 10
+    #imgList = ["tsukuba1.jpg", "tsukuba2.jpg"]
+    imgList = ["moebius1.png", "moebius2.png"]
     
-    img1 = cv2.imread(imgDir + imgList[0])
-    img2 = cv2.imread(imgDir + imgList[1])
+    img1 = cv2.imread(imgDir + imgList[0],cv2.IMREAD_GRAYSCALE)
+    img2 = cv2.imread(imgDir + imgList[1],cv2.IMREAD_GRAYSCALE)
 
-    windowSize = 100
+    if resize:
+        for  i in range(2):
+            img1 = downscale(img1)
+            img2 = downscale(img2)
+        
+    
+    img1 = img1/255
+    img2 = img2/255
+    
+    windowSize = 6
     step = 1
-    offset = 1
+    offset = 30
     
     disparities = np.zeros((img1.shape),np.uint8)
     
@@ -74,12 +85,15 @@ def main():
     
     end = time.time()
     
-    print(end-start)
+    print('\n',"Time spent: ",end-start)
+    # if resize:
+    #     for i in range(2):
+    #         disparities = upscale(disparities)
     
-    cv2.imshow("disp",disparities)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
+    cv2.imwrite("mobi.jpg",disparities)
+    # cv2.imshow("img",disparities)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
     
 if __name__ == "__main__":
     main()
