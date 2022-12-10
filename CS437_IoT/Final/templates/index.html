@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type = "text/javascript" 
+           src = "{{ url_for('static', filename = 'hello.js') }}" ></script>
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename = 'style.css') }}">
+     </head>
+     
+     <body>
+        <h1>CS437 Topics in Internet of Things</h1>
+        <p>Derek Yang (mcy3) & Yoonhwa Jung (yoonhwa2)</p>
+        <span>
+            <iframe src="http://172.16.109.23:8000/" width="655" height="496"></iframe>
+        </span>
+        <h1>
+        <table class="arrowkeys">
+            <tr>
+               <td><i class="arrow left" id="left" onmousedown="down('left')" onmouseup="resume('left')"></i></i></td>
+                <td>&ensp;</td>
+                <td><i class="arrow right" id="right" onmousedown="down('right')" onmouseup="resume('right')"></i></td>
+                <td>&ensp;</td>
+            </tr>
+        </table>
+        </h1>
+        <input type="text" id="mail">
+        <input type = "button" onclick = "setEmail()" value = "Set Email" />
+        <input type = "button" onclick = "delEmail()" value = "Delete Email" />
+     </body>
+    
+</html>
