@@ -9,4 +9,8 @@
 - CS437 Topics in Internet of Things
 - CS440 Artificial Intelligence
 - CS543 Computer Vision
->WINTER 2022
+>SPRING 2023
+- CS411 Database Systems
+- CS415 Game Development
+- CS444 Deep Learning for Computer Vision 
+- CS568 User-Centered Machine Learning
