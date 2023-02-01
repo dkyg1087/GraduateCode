@@ -14,3 +14,8 @@
 - CS415 Game Development
 - CS444 Deep Learning for Computer Vision 
 - CS568 User-Centered Machine Learning
+
+
+#Disclaimer
+This is just for any future reference.
+Feel Free to reference stuff from here but don't plagiarize the whole thing. I've learned this the hard way :(
