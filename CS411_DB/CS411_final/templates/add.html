@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+    <head>
+         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+         <script>
+            window.post = async function(url,data) {
+    return await fetch(url, {method: "POST", headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+}
+
+function send(q){
+
+    console.log("Send,",q);
+    result = post("/query",{query:q}).then(response => response.json()).then(data =>{
+
+        if (!data["result"]){
+            alert("There was a error in your query. " +data["msg"])
+        }
+        else{
+            console.log(data["msg"]);
+            console.log(typeof data["msg"]);
+            res = data["msg"]
+            var array1 = res.map(item => parseInt(item));
+            show_chart(array1)
+        }
+        
+    });
+}
+            function show_chart(arr1){
+                const ctx = document.getElementById('myChart');
+                let chartStatus = Chart.getChart("myChart"); // <canvas> id
+                if (chartStatus != undefined) {
+                chartStatus.destroy();
+                }
+            var chart = new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug","Sep", "Oct", "Nov", "Dec"],
+                datasets: [{
+                  label: '# Views ',
+                  data: arr1,
+                  borderWidth: 1
+                }]
+              }
+            });
+            }
+            
+            function doQuery(){
+                let re = document.getElementById("region").value
+                query = "SELECT SUM(Views) FROM Videos WHERE Region='"+re+"' GROUP BY MONTH(PublishDate) ORDER BY MONTH(PublishDate) ASC;"
+                res = send(query)
+            }
+            
+          </script>
+     </head>
+     
+     <body>
+        <h1>Viewcount Progression over month</h1>
+        <p>
+           Select a region to see monthly viewcount in a year.<br/><br>
+           <label for="region">Choose a region:</label>
+            <select name="region" id="region">
+            <option value='US'>US</option>
+            <option value='JP'>JP</option>
+            <option value='KR'>KR</option>
+            <option value='IN'>IN</option>
+            <option value='GB'>GB</option>
+            <option value='MX'>MX</option>
+            <option value='FR'>FR</option>
+            </select>
+            <button type="button" onclick="doQuery();">Query</button>
+        </p>
+        <p><span id="output"></span></p>
+        <br>
+        <div>
+         <canvas id="myChart"></canvas>
+       </div>
+       
+       <a href="/">Home</a>
+     </body>
+    
+</html>

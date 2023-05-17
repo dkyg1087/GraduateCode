@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type = "text/javascript" 
+           src = "{{ url_for('static', filename = 'script.js') }}" ></script>
+     </head>
+     
+     <body>
+        <h1>Insertion</h1>
+        <p>
+            Insert into Tags(<u>TagsID</u>,Name,NumVid,NumChannel) <br/>
+            <input type="text" placeholder="TagsID" id="TagsID_I"/>
+            <input type="text" placeholder="Name" id="Name_I"/>
+            <input type="text" placeholder="NumVid" id="NumVid_I"/>
+            <input type="text" placeholder="NumChannel" id="NumChannel_I"/>
+            <button type="button" onclick="insert_data();">Insert</button>
+        </p>
+        <h1>Search</h1>
+        <p>
+           Search from Videos<br/>
+           <input type="text" placeholder="Video Title" id="Video_S"/>
+           <button type="button" onclick="search_data('vid');">Search</button>
+           <input type="text" placeholder="Tag Name" id="Tag_S"/>
+           <button type="button" onclick="search_data('tag');">Search</button>
+        </p>
+        <p><span id="output_S"></span></p>
+        <h1>Update</h1>
+        <p>
+           Update data from database <br/>
+           <input type="text" placeholder="TagsID" id="TagsID_U"/> <br/>
+            <input type="text" placeholder="Name" id="Name_U"/><br/>
+            <input type="text" placeholder="NumVid" id="NumVid_U"/><br/>
+            <input type="text" placeholder="NumChannel" id="NumChannel_U"/><br/>
+            <button type="button" onclick="update_data();">Update</button>
+        </p>
+        <h1>Delete</h1>
+        <p>
+           Delete data from database <br/>
+           <input type="text" placeholder="TagID to delete" id="del" />
+            <button type="button" onclick="delete_data();">Delete</button>
+        </p>
+        <h1>Advance SQL</h1>
+        <p>
+         SELECT SUM(v.Views),t.Name <br/>
+         FROM Describes d JOIN Videos v ON(d.VideoID=v.VideoID) JOIN Tags t ON (d.TagsID=t.TagsID)<br/>
+         GROUP BY d.TagsID,t.Name <br/>
+         ORDER BY SUM(v.Views) DESC<br/>
+         LIMIT 15;<br/>
+         <input type = "button" onclick = "sendQuery(1)" value = "Try query" />
+        </p>
+        <p>
+         SELECT v.VideoTitle, c.ChannelName <br/>
+         FROM Videos v JOIN Channels c ON (c.ChannelID = v.ChannelID) <br/>
+         WHERE v.VideoID IN (SELECT VideoID FROM Tags t JOIN Describes d ON (d.TagsID=t.TagsID) WHERE t.Name LIKE "funny") AND v.Likes > 100 <br/>
+         ORDER BY v.Views DESC <br/>
+         LIMIT 15;<br/>
+           <input type = "button" onclick = "sendQuery(2)" value = "Try query" />
+        </p>
+        <p><span id="output_AQ"></span></p>
+     </body>
+    
+</html>

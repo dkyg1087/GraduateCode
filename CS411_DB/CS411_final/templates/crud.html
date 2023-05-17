@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script>
+            window.post = async function(url,data) {
+    return await fetch(url, {method: "POST", headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+}
+
+function send(q,op){
+
+    console.log("Send,",q);
+    result = post("/query",{query:q}).then(response => response.json()).then(data =>{
+
+        if (!data["result"]){
+            alert("There was a error in your query. " +data["msg"])
+        }
+        else{
+            console.log(data["msg"]);
+            res = data["msg"]
+            if(op){
+                document.getElementById("output_S").innerHTML = JSON.stringify(res);
+            }
+        }
+        
+    });
+}
+            function insert_data(){
+                let id = document.getElementById("VideoID_I").value
+                let title = document.getElementById("VideoTitle_I").value
+                let leng = document.getElementById("Length_I").value
+                let views = document.getElementById("Views_I").value
+                let dlikes = document.getElementById("Dislikes_I").value
+                let likes = document.getElementById("Likes_I").value
+                let numcom = document.getElementById("NumComments_I").value
+                let ch_id = document.getElementById("ChannelID_I").value
+                let u_id = document.getElementById("UserID_I").value
+                let query = "INSERT INTO Videos(VideoID,VideoTitle,Length,Views,Dislikes,Likes,NumComments,ChannelID,UserID) VALUES('"+id+"','"+title+"',"+leng+","+views+","+dlikes+","+likes+","+numcom+",'"+ch_id+"','"+u_id+"');"
+                send(query,false)
+            }
+            function search_data(){
+                let title = document.getElementById("Video_S").value
+                document.getElementById("Video_S").value = ""
+                let query = "SELECT * FROM Videos WHERE VideoTitle LIKE '%"+title+"%' LIMIT 2;"
+                ret = send(query,true)
+                //document.getElementById("output_S").innerHTML = JSON.stringify(ret);
+
+            }
+            function search_chan(){
+                let name = document.getElementById("Chan_S").value
+                document.getElementById("Chan_S").value = ""
+                let query = "SELECT ChannelID,UserID FROM Channels WHERE ChannelName='" + name +"';"
+                send(query,true)
+            }
+            function update_d(){
+                let title = document.getElementById("VideoTitle_U").value
+                document.getElementById("VideoTitle_U").value =""
+                let views = document.getElementById("Views_U").value
+                document.getElementById("Views_U").value=""
+                let dislikes = document.getElementById("Dislikes_U").value
+                document.getElementById("Dislikes_U").value=""
+                let likes = document.getElementById("Likes_U").value
+                document.getElementById("Likes_U").value=""
+                let que = "UPDATE Videos SET Views="+views+",Dislikes="+dislikes+",Likes="+likes+" WHERE VideoTitle='"+title+"';"
+                send(que,false)
+            }
+            function delete_data(){
+                let targ = document.getElementById("del").value
+                document.getElementById("del").value = ""
+                let query = "DELETE FROM Videos WHERE VideoTitle ='" + targ +"';"
+                send(query,false)
+            }
+
+
+        </script>
+    </head>
+    <body>
+        <h1>Insertion</h1>
+        <p>
+            Insert into Videos(<u>VideoID</u>,VideoTitle,Length,Views,Dislikes,Likes,PublishDate,NumComments,ChannelName) <br/>
+            <input type="text" placeholder="VideoID" id="VideoID_I"/>
+            <input type="text" placeholder="VideoTitle" id="VideoTitle_I"/>
+            <input type="text" placeholder="Length" id="Length_I"/>
+            <input type="text" placeholder="Views" id="Views_I"/>
+            <input type="text" placeholder="Dislikes" id="Dislikes_I"/>
+            <input type="text" placeholder="Likes" id="Likes_I"/>
+            <input type="text" placeholder="NumComments" id="NumComments_I"/>
+            <input type="text" placeholder="ChannelID" id="ChannelID_I"/>
+            <input type="text" placeholder="UserID" id="UserID_I"/>
+            <button type="button" onclick="insert_data();">Insert</button>
+        </p>
+        <h1>Search</h1>
+        <p>
+           Search from Videos<br/>
+           <p>Videos(<u>VideoID</u>,VideoTitle,Region,Length,Views,Dislikes,Likes,PublishDate,NumComments,ChannelID,UserID)</p>
+           <input type="text" placeholder="Video Title" id="Video_S"/>
+           <button type="button" onclick="search_data();">Search</button>
+        </p>
+        <p>
+            Search for ChannelID and UserID<br/>
+           <input type="text" placeholder="Channel" id="Chan_S"/>
+           <button type="button" onclick="search_chan();">Search</button>
+        </p>
+        <p><span id="output_S"></span></p>
+        <h1>Update</h1>
+        <p>
+           Update from Videos <br/>
+           <input type="text" placeholder="VideoTitle" id="VideoTitle_U"/> <br/>
+            <input type="text" placeholder="Views" id="Views_U"/><br/>
+            <input type="text" placeholder="Dislikes" id="Dislikes_U"/><br/>
+            <input type="text" placeholder="Likes" id="Likes_U"/><br/>
+            <button type="button" onclick="update_d();">Update</button>
+        </p>
+        <h1>Delete</h1>
+        <p>
+           Delete data from database <br/>
+           <input type="text" placeholder="VideoTitle" id="del" />
+            <button type="button" onclick="delete_data();">Delete</button>
+        </p>
+        <a href="/">Home</a>
+    </body>

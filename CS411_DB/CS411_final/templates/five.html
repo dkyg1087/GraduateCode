@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chart.js</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        window.post = async function(url,data) {
+return await fetch(url, {method: "POST", headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+}
+
+function send(q){
+
+console.log("Send,",q);
+result = post("/query",{query:q}).then(response => response.json()).then(data =>{
+
+    if (!data["result"]){
+        alert("There was a error in your query. " +data["msg"])
+    }
+    else{
+        console.log(data["msg"]);
+        console.log(typeof data["msg"]);
+        res = data["msg"]
+        document.getElementById("title").innerHTML = res[0][0]
+        show_chart(res[0][1],res[0][2],res[0][3])
+    }
+    
+});
+}
+        function show_chart(a,b,c){
+            const ctx = document.getElementById('myChart');
+            //var ctx = document.getElementById('myChart').getContext('2d');
+            let chartStatus = Chart.getChart("myChart"); // <canvas> id
+            if (chartStatus != undefined) {
+            chartStatus.destroy();
+            }
+            var myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['likes', 'dislikes', 'views'],
+                datasets: [{
+                    label: "Video",
+                    data: [a, b, c],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.2)',
+                        'rgba(54, 162, 235, 0.2)',
+                        'rgba(255, 206, 86, 0.2)',
+                        'rgba(75, 192, 192, 0.2)',
+                        'rgba(153, 102, 255, 0.2)',
+                        'rgba(255, 159, 64, 0.2)'
+                    ],
+                    borderColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true
+                        }
+                    }]
+                }
+            }
+        });
+        }
+        
+        function doQuery(){
+            let txt = document.getElementById("Video_S").value
+            query = "SELECT VideoTitle,Likes, Dislikes, Views FROM Videos WHERE VideoTitle LIKE '%" + txt + "%' LIMIT 1;"
+            res = send(query)
+        }
+        
+      </script>
+</head>
+<body>
+    <div>Bar Chart Analyzing Likes, Dislikes, and Views</div>
+    <p>
+        Search from Videos<br/>
+        <input type="text" placeholder="Video Title" id="Video_S"/>
+        <button type="button" onclick="doQuery();">Search</button>
+        <span id="title"></span>
+     </p>
+     <p><span id="output"></span></p>
+    <canvas id="myChart"></canvas>
+    <a href="/">Home</a>
+</body>
+</html>
